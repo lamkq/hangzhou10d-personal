@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="杭州10D">
+<link rel="manifest" href="./manifest.webmanifest">
+<title>杭州10D · v5</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f3f2ee;color:#151515;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans SC",Arial,sans-serif}.app{max-width:520px;margin:auto;min-height:100vh}
+.top{background:#111;color:#fff;padding:calc(22px + env(safe-area-inset-top)) 18px 16px;position:sticky;top:0;z-index:5}.ey{font-size:11px;color:#aaa;letter-spacing:.6px}.top h1{font-size:29px;margin:5px 0}.top p{margin:0;color:#bbb;font-size:13px}
+main{padding:14px 14px 95px}.hero,.card,.day,.place{background:#fff;border:1px solid #e4e2dc;border-radius:18px;padding:15px;margin-bottom:10px}.hero h2,.sec{margin:0 0 8px}.muted{color:#777;font-size:12px;line-height:1.55}.route{display:flex;align-items:center;gap:7px;margin:13px 0}.city{padding:8px 11px;background:#f0efeb;border-radius:12px;font-weight:700}.arrow{color:#888}.badge{background:#111;color:#fff;border-radius:20px;padding:5px 8px;font-size:11px}
+.stats{display:flex;gap:8px}.stat{background:#f4f3ef;border-radius:12px;padding:10px;flex:1}.stat small{color:#777}.stat strong{display:block;margin-top:4px}
+.sec{font-size:20px;margin-top:19px}.chips{display:flex;gap:7px;overflow:auto;margin:8px 0}.chip{white-space:nowrap;background:#fff;border:1px solid #ddd;border-radius:18px;padding:8px 11px}
+.day{padding:12px}.date{font-weight:800;display:inline-block;width:54px}.theme{font-weight:700}.place h3{margin:0 0 4px}.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:7px}.pill{background:#f1f0ec;padding:5px 8px;border-radius:10px;font-size:11px}.favorite{float:right;border:0;background:none;font-size:21px}.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(520px,100%);background:#fff;border-top:1px solid #ddd;display:flex;justify-content:space-around;padding:8px 2px calc(8px + env(safe-area-inset-bottom));z-index:9}.nav button{border:0;background:none;color:#777;font-size:10px}.nav b{display:block;font-size:19px}.nav .on{color:#111;font-weight:700}.empty{padding:20px;text-align:center;color:#777}.budget{font-size:24px;font-weight:800}.status{font-size:11px;margin-top:8px;color:#666}
+</style>
+</head>
+<body><div class="app">
+<header class="top"><div class="ey">SHANGHAI → HANGZHOU · 2026/11/20–12/01</div><h1>杭州 10D</h1><p>中国大陆生产架构 · v5</p></header>
+<main id="main"></main>
+<nav class="nav">
+<button class="on" data-tab="home"><b>⌂</b>首页</button>
+<button data-tab="food"><b>🍽</b>正餐</button>
+<button data-tab="sweet"><b>🍰</b>甜品</button>
+<button data-tab="hotel"><b>🏨</b>酒店</button>
+<button data-tab="plan"><b>📅</b>计划</button>
+</nav>
+</div>
+<script>
+const API=(localStorage.getItem('hz10d_api')||'').replace(/\/$/,'');
+const trip={start:'2026-11-20',end:'2026-12-01',hotelIn:'2026-11-22',hotelOut:'2026-12-01',nights:9};
+const days=[
+['11/20','上海','上海抵达','抵达上海；入住和休息为主',300,600],
+['11/21','上海','上海自由日','吃喝/朋友安排',300,800],
+['11/22','上海→杭州','上海 → 杭州','下午前往杭州；入住浙二滨江附近',350,700],
+['11/23','杭州','浙二滨江周边','熟悉酒店、浙二和周边吃喝',200,450],
+['11/24','杭州','滨江新店','优先较新的年轻人餐厅 / 咖啡',200,500],
+['11/25','杭州','正餐 + 甜品','重点正餐 + 独立甜品 / 咖啡',250,550],
+['11/26','杭州','杭州新店雷达','选择当时较新的店',200,500],
+['11/27','杭州','甜品专程日','马卡龙 / 巴斯克 / 舒芙蕾 / 独立蛋糕',180,450],
+['11/28','杭州','年轻人餐厅日','年轻人偏好的正餐',220,500],
+['11/29','杭州','值得专程去','一到两家值得专程前往的店',250,650],
+['11/30','杭州','自由机动','根据实时新店、天气、体力调整',150,450],
+['12/01','杭州','收尾 / 离杭准备','最后一顿 + 整理行李',150,400]
+];
+let tab='home', fav=JSON.parse(localStorage.getItem('hz10d_fav')||'[]');
+function dcard(d){return `<div class="day"><span class="date">${d[0]}</span><span class="theme">${d[2]}</span><div class="muted">${d[1]} · ${d[3]}</div><div class="muted">预算 ¥${d[4]}–¥${d[5]}</div></div>`}
+function mockFood(kind){
+const arr=kind==='restaurant'?[
+['滨江年轻餐厅 A','4.6','¥120','1.2 km','新店 / 年轻人'],
+['滨江融合料理 B','4.7','¥145','1.8 km','创意菜 / 适合聚餐'],
+['杭州新派中餐 C','4.5','¥110','2.4 km','新派杭帮'],
+['江景正餐 D','4.6','¥160','2.8 km','江景 / 夜间']
+]:[
+['圣诺黑蛋糕','4.7','¥55','—','黑巧 / 蛋糕'],
+['皮师傅','4.6','¥45','—','独立蛋糕'],
+['Black Rainbow','4.7','¥60','—','咖啡甜品'],
+['NANA','4.6','¥50','—','蛋糕 / 咖啡'],
+['NAYA','4.6','¥55','—','甜品'],
+['小嫣然','4.7','¥50','—','甜品 / 多人分食']
+];
+return arr.map(x=>({name:x[0],rating:x[1],price:x[2],distance:x[3],tags:x[4]}))}
+async function api(path){if(!API)throw Error('未配置生产 API');let r=await fetch(API+path);if(!r.ok)throw Error(r.status);return r.json()}
+function place(x){let id=x.id||x.name;let on=fav.includes(id);return `<div class="place"><button class="favorite" onclick="toggleFav('${id.replaceAll("'","")}')">${on?'♥':'♡'}</button><h3>${x.name}</h3><div class="muted">${x.address||''}</div><div class="row"><span class="pill">⭐ ${x.rating??'待更新'}</span><span class="pill">人均 ${x.priceAvg?'¥'+x.priceAvg:(x.price||'待更新')}</span><span class="pill">📍 ${x.distanceKm??x.distance??'待更新'}</span></div><div class="status">${x.openNow===true?'🟢 营业中':x.openNow===false?'⚪ 当前休息':'数据源待更新'} · ${x.tags||x.kind||''}</div></div>`}
+function minutesNow(){const d=new Date();return d.getHours()*60+d.getMinutes()}
+function parseHM(x){const m=String(x||'').match(/^(\d{1,2}):(\d{2})$/);return m?Number(m[1])*60+Number(m[2]):null}
+function openingState(hours){
+  const now=minutesNow(), ranges=(hours||[]).map(r=>[parseHM(r[0]),parseHM(r[1])]).filter(r=>r[0]!=null&&r[1]!=null);
+  let open=false,next=null,close=null;
+  for(const [a,b0] of ranges){
+    const b=b0<=a?b0+1440:b0;
+    if((now>=a&&now<b)||(now+1440>=a&&now+1440<b)){open=true;close=b;break}
+    const cand=a>=now?a:a+1440;if(next===null||cand<next)next=cand;
+  }
+  if(open){const mins=close-now;return {label:'🟢 营业中',sub:`${Math.floor(mins/60)}小时${mins%60}分钟后打烊`,type:'open'}}
+  if(next!==null){const mins=next-now;return {label:'🟡 即将开门',sub:`约 ${Math.floor(mins/60)}小时${mins%60}分钟后开门`,type:'soon'}}
+  return {label:'🔴 今日暂无营业',sub:'可换一家',type:'closed'}
+}
+const quickPlaces=[
+  {name:'圣诺黑蛋糕',kind:'甜品',rating:'4.7',price:'¥55',hours:[['11:00','22:00']]},
+  {name:'Black Rainbow',kind:'咖啡甜品',rating:'4.7',price:'¥60',hours:[['10:00','22:00']]},
+  {name:'滨江年轻餐厅 A',kind:'正餐',rating:'4.6',price:'¥120',hours:[['11:30','14:00'],['17:00','22:00']]},
+  {name:'滨江融合料理 B',kind:'正餐',rating:'4.7',price:'¥145',hours:[['11:00','14:00'],['17:00','22:30']]}
+];
+function nowSuitable(){
+ const items=quickPlaces.map(x=>({...x,state:openingState(x.hours)}))
+ .filter(x=>x.state.type!=='closed')
+ .sort((a,b)=>(a.state.type==='open'?0:1)-(b.state.type==='open'?0:1));
+ return `<section class="hero"><h2>🕐 现在适合去哪</h2><p class="muted">按你 iPhone 当前时间筛选 · 优先仍在营业，其次即将开门</p>${items.length?items.slice(0,5).map(x=>`<div class="place"><h3>${x.name}</h3><div class="muted">${x.kind} · ⭐ ${x.rating} · ${x.price}</div><div class="status">${x.state.label} · ${x.state.sub}</div></div>`).join(''):'<div class="empty">附近暂无匹配店铺</div>'}</section>`
+}
+
+let userCoords=null, locLabel='未获取位置';
+function distanceKm(lat1,lon1,lat2,lon2){
+ const R=6371, a=Math.PI/180, dLat=(lat2-lat1)*a,dLon=(lon2-lon1)*a;
+ const q=Math.sin(dLat/2)**2+Math.cos(lat1*a)*Math.cos(lat2*a)*Math.sin(dLon/2)**2;
+ return R*2*Math.atan2(Math.sqrt(q),Math.sqrt(1-q));
+}
+const localDemo=[
+ {name:'滨江年轻餐厅 A',kind:'正餐',lat:30.1879,lng:120.2171,rating:4.6,price:'¥120',hours:[['11:30','14:00'],['17:00','22:00']]},
+ {name:'滨江融合料理 B',kind:'正餐',lat:30.1849,lng:120.2221,rating:4.7,price:'¥145',hours:[['11:00','14:00'],['17:00','22:30']]},
+ {name:'圣诺黑蛋糕',kind:'甜品',lat:30.1901,lng:120.2142,rating:4.7,price:'¥55',hours:[['11:00','22:00']]},
+ {name:'Black Rainbow',kind:'咖啡甜品',lat:30.1818,lng:120.2187,rating:4.7,price:'¥60',hours:[['10:00','22:00']]}
+];
+async function getPosition(){
+ return new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(
+  p=>{userCoords={lat:p.coords.latitude,lng:p.coords.longitude};locLabel=`当前位置 · ${p.coords.latitude.toFixed(4)}, ${p.coords.longitude.toFixed(4)}`;resolve(userCoords)},
+  e=>reject(e),{enableHighAccuracy:true,timeout:8000,maximumAge:300000}
+ ));
+}
+function nearbyModule(){
+ const now=minutesNow();
+ let items=localDemo.map(x=>({...x,distance:userCoords?distanceKm(userCoords.lat,userCoords.lng,x.lat,x.lng):null,state:openingState(x.hours)}))
+ .filter(x=>x.state.type!=='closed')
+ .sort((a,b)=>((a.state.type==='open'?0:1)-(b.state.type==='open'?0:1)) || ((a.distance??99)-(b.distance??99)));
+ return `<section class="hero"><h2>📍 现在适合去哪</h2><p class="muted">${locLabel} · 只在你点击后获取位置</p>
+ <div class="chips"><span class="chip">500m</span><span class="chip">1km</span><span class="chip">3km</span><span class="chip">营业中优先</span></div>
+ ${userCoords?items.slice(0,5).map(x=>`<div class="place"><h3>${x.name}</h3><div class="muted">${x.kind} · ⭐ ${x.rating} · ${x.price}</div><div class="row"><span class="pill">📍 ${x.distance.toFixed(1)} km</span><span class="pill">${x.state.label}</span></div><div class="status">${x.state.sub}</div></div>`).join(''):`<div class="card"><b>打开位置权限</b><div class="muted">点击下方按钮后，App 会按你的当前位置筛选附近且正在营业/即将开门的店。</div><button onclick="enableLocation()" style="margin-top:10px;padding:10px 14px;border:0;border-radius:12px;background:#111;color:#fff">使用我的位置</button></div>`}</section>`;
+}
+async function enableLocation(){try{await getPosition();render()}catch(e){locLabel='位置权限未开启';render()}}
+function home(){return nearbyModule()+nowSuitable()+`<section class="hero"><h2>上海 → 杭州</h2><p class="muted">11/20–11/22 上海 · 11/22 下午进入杭州 · 12/01结束</p><div class="route"><span class="city">上海</span><span class="arrow">→</span><span class="city">杭州</span><span class="badge">11/22 下午</span></div><div class="stats"><div class="stat"><small>杭州酒店</small><strong>11/22 → 12/01</strong></div><div class="stat"><small>入住</small><strong>9晚</strong></div></div></section><h2 class="sec">📅 行程</h2>${days.map(dcard).join('')}<h2 class="sec">💰 预算</h2><div class="card"><div class="budget">¥ 300 / 天</div><div class="muted">可在后续版本接入总预算与实际消费记录。</div></div>`}
+async function listing(kind){let items;try{let data=await api(kind==='restaurant'?'/restaurants?radiusKm=3':'/desserts?radiusKm=3');items=data.items||[]}catch(e){items=mockFood(kind)}return `<h2 class="sec">${kind==='restaurant'?'🍽 正餐':'🍰 甜品'}</h2><div class="chips"><span class="chip">浙二 3km</span><span class="chip">高评分</span><span class="chip">较新</span><span class="chip">不太贵</span></div>${items.length?items.map(place).join(''):'<div class="empty">暂无数据</div>'}`}
+async function hotels(){let items=[];try{let d=await api('/hotels?checkin=2026-11-22&checkout=2026-12-01');items=d.items||[]}catch(e){}return `<h2 class="sec">🏨 浙二滨江酒店</h2><div class="card"><b>入住 11/22 → 退房 12/01 · 9晚</b><div class="muted">优先按距离、评分、价格、取消政策综合比较。</div></div>${items.length?items.map(h=>`<div class="place"><h3>${h.name}</h3><div class="muted">${h.address||''}</div><div class="row"><span class="pill">⭐ ${(h.place_metrics||[])[0]?.rating??'待更新'}</span><span class="pill">${(h.hotel_rates||[])[0]?.price?'¥'+(h.hotel_rates||[])[0].price:'价格待更新'}</span></div></div>`).join(''):'<div class="empty">酒店实时价格接入后显示。当前先保留入住结构。</div>'}`}
+function plan(){return `<h2 class="sec">📅 10日计划</h2>${days.slice(2).map(dcard).join('')}`}
+async function render(){document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));const m=document.getElementById('main');m.innerHTML='<div class="empty">加载中…</div>';try{m.innerHTML=tab==='home'?home():tab==='plan'?plan():tab==='hotel'?await hotels():await listing(tab==='food'?'restaurant':'dessert')}catch(e){m.innerHTML='<div class="empty">加载失败，请检查 API。</div>'}}
+function toggleFav(id){if(fav.includes(id))fav=fav.filter(x=>x!==id);else fav.push(id);localStorage.setItem('hz10d_fav',JSON.stringify(fav));render()}
+document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render()});render();
+</script></body></html>
